@@ -4,24 +4,19 @@ console.log(x.style["button"])
 
 
 class Gravity {
-    constructor(object,scale=null) {
+    constructor(object,scale=1) {
 
+        /*
+        O parâmetro "scale" tem como próposito permitir que seja simulada a gravidade em diferentes escalas
+        métricas. Por exemplo, ao dizer que a escala é 100, isso equivale a dizer que, neste código, 100 pixels
+        equivalem a 1 metro. Da mesma forma, com a escala 1, 1 pixel passa a ser o equivalente a 1 metro, de
+        forma que se tornaria possível até mesmo simular a queda livre de um objeto a uma altura de
+        1000 metros.
+        */
         this.prop = scale
         
         if (!object.nodeType){
             return console.log("The selector isn't valid")
-            
-        }else{
-            let text = object.tagName.toLocaleLowerCase()
-            let id = object.id
-            let classe = object.className
-            if (id) {text+=`#${id}`}
-            if (classe.search(/\s+/)!=-1 && classe){
-                var str = ""
-                classe.replace(/\s+/,".")
-                {text += `.${classe}`}
-            } else if (classe) {text+=`.${classe}`}
-            this.selector = text
         }
 
         if (!object.style.right && !object.style.left){
@@ -52,7 +47,7 @@ class Gravity {
 
                         let number = Number(object.style[x].slice(0,object.style[x].indexOf('%')))
                         console.log(number, x)
-                        //eval("var" + x + " = " + number)
+
                         if (Number.isInteger(coords.indexOf(x)/2)) {
                             number = Number(((number/100) * this.parent.clientHeight).toFixed(2))
                         }
@@ -88,12 +83,22 @@ class Gravity {
             }
     }
 
-    //JUMP METHOD
-    jump(height=null,width=null,vy0=null,left=false){
 
-        if (this.position=="static"){return console.log("Determine uma posição não estática")}
-        if (height==null && vy0==null){return console.log("Determine uma velocidade inicial ou altura")}
-        /*Calcs:
+    toLeft(el, t, self) {
+        self.left = Number((-self.vx0*t + self.x0).toFixed(2))
+        el.style.left = `${self.left}px`
+    }
+
+    toRight(el, t, self) {
+        self.left = Number((self.vx0*t + self.x0).toFixed(2))
+        el.style.left = `${self.left}px`
+    }
+
+
+    //JUMP METHOD
+    /*
+    Esse método é responsável pelos lançamentos, seja oblíquos ou retilíneos
+    Cálculos:
         v1^2 = v0^2 + 2aS
         0 = v0^2 + 2aS
         -v0^2 = 2aS
@@ -106,80 +111,102 @@ class Gravity {
         S = height - this.bottom
         ou
         S = (heigh - this.bottom)/this.props
-        */
-        let el = document.querySelector(`${this.selector}`)
-        this.prop!=null ? this.vy0 = Number(Math.sqrt(20*(height-this.bottom)/this.prop).toFixed(2)) : this.vy0 = Number(Math.sqrt(20*(height-this.bottom)).toFixed(2))
-        this.prop!=null ? this.s0 = Number((this.bottom/this.prop).toFixed(2)):this.s0 = Number((this.bottom).toFixed(2))
+    */
+    jump(height=null,width=null,vy0=null,left=false){
+
+        if (this.position=="static"){console.log("Determine uma posição não estática");return}
+        if (height==null && vy0==null){console.log("Determine uma velocidade inicial ou altura");return}
+        if (height - this.bottom < 0){console.log("insira uma altura maior que a atual");return}
+
+        let el = this.object
+        this.vy0 = Number(Math.sqrt(20*(height-this.bottom)/this.prop).toFixed(2))
+        this.s0 = Number((this.bottom/this.prop).toFixed(2))
+
+        const v1 = Number(Math.sqrt(20*(height)/this.prop).toFixed(2))
+        const t1 = v1/10
+        const t2 = this.vy0/10
+        const tempoPrevisto = Number((t1 + t2).toFixed(2))
+        
+        let horizontalFunc = (el, t, self) => {}
         let t =0.005
         //width event
+
         if (width) {
-            this.t= Number((this.vy0/5).toFixed(2))
+            this.t = Number((this.vy0/5).toFixed(2))
             this.vx0 = width/this.t
             this.x0 = this.left
+
+            if (left==true) {
+                horizontalFunc = this.toLeft
+            } else {
+                horizontalFunc = this.toRight
+            }
         }
+
+        const time = new Date()
 
         this.jumpinterval = setInterval(()=>{
             //bottom
-            this.prop!=null ? this.bottom = Number(((this.s0 + this.vy0*t - 5*(t**2))*this.prop).toFixed(2)):this.bottom = Number(((this.s0 + this.vy0*t - 5*(t**2))).toFixed(2))
+            this.bottom = Number(((this.s0 + this.vy0*t - 5*(t**2))*this.prop).toFixed(2))
             el.style.bottom = `${this.bottom}px`
             //width event
-            if (width){
-                if (left==true){
-                    this.left = Number((-this.vx0*t + this.x0).toFixed(2))
-                    el.style.left = `${this.left}px`
-                }else{
-                    console.log(typeof(this.x0))
-                    this.left = Number((this.vx0*t + this.x0).toFixed(2))
-                    el.style.left = `${this.left}px`
-                }
-            }
+            horizontalFunc(el, t, this)
             //time add
             t += 0.005
-            if (t>0.5 && this.bottom<0.1){clearInterval(this.jumpinterval),console.log(this.left.toFixed(2),this.right.toFixed(2),el.style.right)}
-            //else if (this.left<0.1 && t>0.01|| this.right<0.1 && t>0.01) {
-                //console.log(this.left.toFixed(2),this.right.toFixed(2)),clearInterval(this.interval),this.down()//}                   
+            if (t>0.5 && this.bottom<0.1){
+                clearInterval(this.jumpinterval)
+                console.log(`tempo previsto:${tempoPrevisto}\n`,`tempo passado:${(new Date() - time)/1000}`)
+            }                   
         },5)
         this.intervals.push(this.jumpinterval)
     }
 
     //DOWN METHOD
+    /*
+    Esse método simplesmente simula queda livre ou lançamentos, 
+    mas não aqueles que são para cima
+    */
     down(width=null,left=false){
+
         if (this.position=="static"){return console.log("Determine uma posição não estática")}
         if (this.bottom<=0){return console.log("determine uma altura válida")}
         //v0^2 = -2aS --> v0 = 20*S
-        let el = document.querySelector(`${this.selector}`)
+        let el = this.object
+        this.s0 = Number((this.bottom/this.prop).toFixed(2))
+
+        let horizontalFunc = (el, t, self) => {}
         let t =0.005
-        this.prop!=null ? this.s0 = Number((this.bottom/this.prop).toFixed(2)):this.s0 = Number((this.bottom).toFixed(2))
         //width event
         // s = s0 + at2/2 --> 0 = height -5t2 --> t = height/5 raiz
         if (width) {
             this.t= Number((Math.sqrt(this.s0/5)).toFixed(2))
             this.vx0 = width/this.t
             this.x0=this.left
+
+            if (left==true) {
+                horizontalFunc = this.toLeft
+            } else {
+                horizontalFunc = this.toRight
+            }
         }
 
         this.downinterval = setInterval(()=>{
             //bottom
-            this.prop!=null ? this.bottom = Number(((this.s0 - 5*(t**2))*this.prop).toFixed(2)):this.bottom = Number(((this.s0 - 5*(t**2))).toFixed(2))
+            this.bottom = Number(((this.s0 - 5*(t**2))*this.prop).toFixed(2))
             el.style.bottom = `${this.bottom}px`
             //width event
-            if (width){
-                if (left==true){
-                    this.left = Number((-this.vx0*t + this.x0).toFixed(2))
-                    el.style.left = `${this.left}px`
-                }else{
-                this.left = Number((this.vx0*t + this.x0).toFixed(2))
-                el.style.left = `${this.left}px`
-                }
-            }
+            horizontalFunc(el, t, this)
             //time add
             t += 0.005
-            if (this.bottom<0.1){clearInterval(this.downinterval)}
+            if (t>0.5 && this.bottom<0.1){clearInterval(this.downinterval)}
         },5)
         this.intervals.push(this.downinterval)
     }
     
     //CLEAR METHOD
+    /*
+    Esse método faz com que a execução de todos os métodos da classe seja interrompida
+    */
     clear(interval=null){
         if (interval){clearInterval(interval)}
         else {
@@ -190,11 +217,12 @@ class Gravity {
     }
 }
 
-//var y = new Gravity(x,"div")
-
 var y = new Gravity(x,100)
 
 console.log(y.bottom)
+
+/* Essa é uma forma de uso interessante: ao clicar em um dos lados do quadrado ele pula na direção oposta.
+*/
 
 x.addEventListener('mousedown', (even)=>{
     if (y.intervals) {y.clear()}
@@ -203,11 +231,3 @@ x.addEventListener('mousedown', (even)=>{
         y.jump(number+100,200)
     } else {y.jump(number+100,200,null,true)}
 })
-
-/*x.addEventListener('mousemove',(even)=>{
-    if (even.buttons==1){
-        console.log(even.buttons,even.offsetX,x.clientLeft)
-        x.style.left = `${even.clientX - x.clientWidth/2}px`
-        x.style.top = `${even.clientY - x.clientHeight/2}px`
-    }
-})*/
