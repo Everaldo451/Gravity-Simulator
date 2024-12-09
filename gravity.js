@@ -27,6 +27,7 @@ class Gravity {
         this.object = object
         this.parent = object.parentElement
         this.position = object.style.position
+        this.horizontalFunc = () => {}
         this.intervals = []
 
         const coords = ["bottom","right","top","left"]
@@ -84,14 +85,14 @@ class Gravity {
     }
 
 
-    toLeft(el, t, self) {
-        self.left = Number((-self.vx0*t + self.x0).toFixed(2))
-        el.style.left = `${self.left}px`
+    toLeft(intervalDuration) {
+        this.left -= parseFloat((this.horizontal_v0*intervalDuration).toFixed(4))
+        this.object.style.left = `${this.left}px`
     }
 
-    toRight(el, t, self) {
-        self.left = Number((self.vx0*t + self.x0).toFixed(2))
-        el.style.left = `${self.left}px`
+    toRight(intervalDuration) {
+        this.left += parseFloat((this.horizontal_v0*intervalDuration).toFixed(4))
+        this.object.style.left = `${this.left}px`
     }
 
 
@@ -111,53 +112,67 @@ class Gravity {
         S = height - this.bottom
         ou
         S = (heigh - this.bottom)/this.props
+
+        Suponha agora o seguinte:
+
+        S = S0 + V0t + a(t**2)/2
+        S1 = S0 + V0(t+0,005) + a(t1**2)/2
+        S - S1 = V0*0,005 + (g/2)*[t**2 - t1**2] 
+        S - S1 = V0*0,005 + (g/2)*(t+t1)*(t-t1) --> t-t1 = 0,005
+        S - S1 = V0*0,005 + 0,005*(g/2)*(t+t1)
+        S - S1 = V0*0,005 + 0,005*(g/2)*(2t1 + 0,005)
     */
     jump(height=null,width=null,vy0=null,left=false){
 
         if (this.position=="static"){console.log("Determine uma posição não estática");return}
         if (height==null && vy0==null){console.log("Determine uma velocidade inicial ou altura");return}
-        if (height - this.bottom < 0){console.log("insira uma altura maior que a atual");return}
+        if (height<this.bottom){console.log("insira uma altura maior que a atual");return}
 
-        let el = this.object
-        this.vy0 = Number(Math.sqrt(20*(height-this.bottom)/this.prop).toFixed(2))
-        this.s0 = Number((this.bottom/this.prop).toFixed(2))
+        const element = this.object
 
-        const v1 = Number(Math.sqrt(20*(height)/this.prop).toFixed(2))
+        const vertical_v0 = parseFloat(Math.sqrt(20*(height-this.bottom)/this.prop).toFixed(4))
+        const v1 = parseFloat(Math.sqrt(20*(height)/this.prop).toFixed(4))
+
         const t1 = v1/10
-        const t2 = this.vy0/10
-        const tempoPrevisto = Number((t1 + t2).toFixed(2))
+        const t2 = vertical_v0/10
+        const tempoPrevisto = parseFloat((t1 + t2).toFixed(4))
         
-        let horizontalFunc = (el, t, self) => {}
-        let t =0.005
+        const intervalDuration=0.005
         //width event
 
         if (width) {
-            this.t = Number((this.vy0/5).toFixed(2))
-            this.vx0 = width/this.t
-            this.x0 = this.left
+            let horizontal_duration = parseFloat((vertical_v0/5).toFixed(4))
+            this.horizontal_v0 = width/horizontal_duration
 
             if (left==true) {
-                horizontalFunc = this.toLeft
-            } else {
-                horizontalFunc = this.toRight
+                this.horizontalFunc = this.toLeft
+            } else if (left==false) {
+                this.horizontalFunc = this.toRight
             }
         }
 
         const time = new Date()
 
+        const verticalVelociyConstant = vertical_v0*intervalDuration
+        const gravityConstant = intervalDuration*-5
+        let timePassed = 0
+
         this.jumpinterval = setInterval(()=>{
-            //bottom
-            this.bottom = Number(((this.s0 + this.vy0*t - 5*(t**2))*this.prop).toFixed(2))
-            el.style.bottom = `${this.bottom}px`
-            //width event
-            horizontalFunc(el, t, this)
-            //time add
-            t += 0.005
-            if (t>0.5 && this.bottom<0.1){
+            if (timePassed>0.5 && this.bottom<0.1) {
+                this.horizontalFunc = () => {}
                 clearInterval(this.jumpinterval)
                 console.log(`tempo previsto:${tempoPrevisto}\n`,`tempo passado:${(new Date() - time)/1000}`)
-            }                   
-        },5)
+                return
+            }  
+            //bottom
+            this.bottom += parseFloat(((verticalVelociyConstant + gravityConstant*(2*timePassed+intervalDuration))*this.prop).toFixed(2))
+            element.style.bottom = `${this.bottom}px`
+            //width event
+            this.horizontalFunc(intervalDuration)
+            //time add
+            timePassed += intervalDuration                 
+        },intervalDuration*1000)
+
         this.intervals.push(this.jumpinterval)
     }
 
@@ -171,34 +186,42 @@ class Gravity {
         if (this.position=="static"){return console.log("Determine uma posição não estática")}
         if (this.bottom<=0){return console.log("determine uma altura válida")}
         //v0^2 = -2aS --> v0 = 20*S
-        let el = this.object
-        this.s0 = Number((this.bottom/this.prop).toFixed(2))
+        const element = this.object
 
-        let horizontalFunc = (el, t, self) => {}
-        let t =0.005
+        const vertical_v = parseFloat(Math.sqrt(20*(this.bottom)/this.prop).toFixed(4))
+        const tempoPrevisto = vertical_v/10
+
+        const intervalDuration=0.005
         //width event
-        // s = s0 + at2/2 --> 0 = height -5t2 --> t = height/5 raiz
         if (width) {
-            this.t= Number((Math.sqrt(this.s0/5)).toFixed(2))
-            this.vx0 = width/this.t
-            this.x0=this.left
+            let horizontal_duration = parseFloat((vertical_v0/5).toFixed(4))
+            this.horizontal_v0 = width/horizontal_duration
 
             if (left==true) {
-                horizontalFunc = this.toLeft
-            } else {
-                horizontalFunc = this.toRight
+                this.horizontalFunc = this.toLeft
+            } else if (left==false) {
+                this.horizontalFunc = this.toRight
             }
         }
 
+        const time = new Date()
+
+        const gravityConstant = intervalDuration*-5
+        let timePassed = 0
+
         this.downinterval = setInterval(()=>{
+            if (timePassed>0.5 && this.bottom<0.1){
+                this.horizontalFunc = () => {}
+                clearInterval(this.downinterval)
+                console.log(`tempo previsto:${tempoPrevisto}\n`,`tempo passado:${(new Date() - time)/1000}`)
+            }
             //bottom
-            this.bottom = Number(((this.s0 - 5*(t**2))*this.prop).toFixed(2))
-            el.style.bottom = `${this.bottom}px`
+            this.bottom += parseFloat((gravityConstant*(2*timePassed+intervalDuration)).toFixed(2))
+            element.style.bottom = `${this.bottom}px`
             //width event
-            horizontalFunc(el, t, this)
+            this.horizontalFunc(intervalDuration)
             //time add
-            t += 0.005
-            if (t>0.5 && this.bottom<0.1){clearInterval(this.downinterval)}
+            timePassed += 0.005
         },5)
         this.intervals.push(this.downinterval)
     }
